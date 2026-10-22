@@ -5,7 +5,7 @@ using System.Text.Json;
 internal sealed class TestRunner
 {
     // The caller owns and disposes the transport and writers, including on failures.
-    public int Run(TestDefinition[] tests, ITransport transport, TextWriter log, TextWriter output)
+    public int Run(TestDefinition[] tests, ITransport transport, TextWriter log, TextWriter output, Action<TestObservation>? observe = null)
     {
         int passed = 0;
         string? unavailable = null;
@@ -73,6 +73,8 @@ internal sealed class TestRunner
                 status, executed ? "true" : "false", duration, response, reason }.Select(Csv)));
             output.WriteLine($"{status}  {test.Name}{(executed ? $" ({duration} ms)" : "")}: {(success ? response : reason)}");
 
+            observe?.Invoke(new TestObservation(success, executed, timer.Elapsed.TotalMilliseconds));
+
             int RemainingMs()
             {
                 int remaining = test.MaxMs - (int)Math.Ceiling(timer.Elapsed.TotalMilliseconds);
@@ -85,3 +87,5 @@ internal sealed class TestRunner
 
     private static string Csv(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
 }
+
+internal sealed record TestObservation(bool Passed, bool Executed, double DurationMs);

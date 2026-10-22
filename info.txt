@@ -85,7 +85,8 @@ Each fault should produce a clear FAIL with a reason, never a crash.
 
 ## Stretch
 
-- Soak test: 1,000 PINGs with min/avg/p95 latency and failure rate; 500 relay cycles to catch intermittent faults
+- [x] PING soak test: 1,000 real Wi-Fi PINGs passed; min 3.83 ms, mean 9.46 ms, p95 16.09 ms, max 137.57 ms; 0 observed failures.
+- [ ] Relay soak test: 500 relay cycles to catch intermittent faults
 - Protocol hardening: checksums, sequence numbers, retries; watchdog timer in firmware
 - Avalonia dashboard with live pass/fail and a latency chart
 - Simplified SECS/GEM-style event and alarm reporting

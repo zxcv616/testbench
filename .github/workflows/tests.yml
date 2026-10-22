@@ -29,3 +29,5 @@ jobs:
         run: python3 checks/serial_smoke.py
       - name: Check TCP transport and fault handling over loopback
         run: python3 checks/tcp_smoke.py
+      - name: Check soak summaries and failure accounting
+        run: python3 checks/soak_smoke.py

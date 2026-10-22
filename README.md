@@ -135,8 +135,42 @@ Available simulator endpoints: `sim`, `sim:stuck-open`, `sim:stuck-closed`, `sim
 
 `DeviceSimulator` models the firmware's commands, uptime, relay state, contact faults, five-second relay watchdog, and relay shutdown on connection close. `SimTransport` implements `ITransport`, adds reply delay/failure injection, and requires a reply to be consumed before the next command. The runner uses unchanged JSON definitions. IP and RSSI values are synthetic; simulation timings measure local software only and must not be presented as hardware/network latency. The model does not emulate boot pins, radio behavior, electrical faults, or mechanical contact settling.
 
-The suite contains **36 xUnit cases**, plus the existing **22 serial/TCP regression check groups**. It covers protocol behavior, shared timing budgets, session shutdown after faults, contact-state mismatches despite successful acknowledgments, CSV escaping, configuration validation, uptime rollover, and watchdog behavior.
+The suite contains **43 xUnit cases**, plus **22 serial/TCP regression check groups** and **4 soak-command checks**. It covers protocol behavior, shared timing budgets, session shutdown after faults, contact-state mismatches despite successful acknowledgments, CSV escaping, configuration validation, uptime rollover, and watchdog behavior.
 
 [GitHub Actions](https://github.com/zxcv616/testbench/actions/workflows/tests.yml) builds the application and runs xUnit tests, default/relay simulator suites, serial pseudo-terminal checks, and TCP loopback checks on every push and pull request. It can also be started manually. CI runs on Linux without physical hardware or Wi-Fi credentials. Local serial/TCP Python checks require Python 3 and macOS/Linux.
 
 M5 is implemented. M4 remains open specifically for wiring and automatic verification of the real relay contacts; simulated contact tests do not complete that hardware milestone.
+
+## Repeatable PING soak test
+
+```sh
+# Real Wi-Fi device: 1,000 sequential PINGs, 500 ms deadline per reply
+dotnet run -- --soak tcp://10.0.0.176:8266
+
+# Optional count, per-command deadline (ms), and output directory
+dotnet run -- --soak tcp://10.0.0.176:8266 1000 500 logs
+
+# Hardware-free demonstration (not a network benchmark)
+dotnet run -- --soak sim
+```
+
+The command saves `logs/soak-<timestamp>-<unique ID>.csv` with every test result and a matching `.json` summary. It reports successful replies, failures, tests not run, failure rate among attempted tests, and minimum/mean/p95/maximum successful-reply latency. P95 uses the nearest-rank method. A connection failure reports failure rate as unavailable; it does not claim zero failures. Timeout or disconnect stops the session so late replies cannot be attributed to later commands. An incomplete run exits with failure and identifies unattempted tests separately.
+
+This is a short, sequential burst on one connection with no retries or intentional delay, not a long-duration endurance test. The host measures command/reply time including its own processing; connection setup and CSV writes are excluded from per-command latency. No relay commands are sent by this suite.
+
+### Real Wi-Fi result — October 21, 2026 (Pacific time)
+
+| Metric | Measured value |
+| --- | --- |
+| Requested / attempted / passed | 1,000 / 1,000 / 1,000 |
+| Failed / not run | 0 / 0 |
+| Observed failure rate | 0.00% |
+| Minimum reply latency | 3.83 ms |
+| Mean reply latency | 9.46 ms |
+| p95 reply latency | 16.09 ms |
+| Maximum reply latency | 137.57 ms |
+| Per-command deadline | 500 ms |
+
+The sample used the actual ESP-01 over Wi-Fi TCP. All 1,000 measurements were below the configured deadline. Zero observed failures in this run is not a guarantee of future reliability. The run does not verify physical relay contacts. Raw local evidence: `soak-20261022-014511-5955740-f91fbe8ba1794e4d904ea4d3729b8f34.csv` and its JSON summary; generated logs remain excluded from Git.
+
+Resume wording supported by this measurement: “Validated an ESP8266 hardware test station with 1,000 sequential Wi-Fi command/reply checks, observing zero failures, 9.46 ms average latency, and 16.09 ms p95 latency.”
