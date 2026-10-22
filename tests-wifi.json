@@ -1,0 +1,38 @@
+[
+  {
+    "name": "ping",
+    "command": "PING",
+    "expect": "OK PONG",
+    "maxMs": 500
+  },
+  {
+    "name": "version",
+    "command": "VERSION",
+    "expectFormat": "version",
+    "maxMs": 500
+  },
+  {
+    "name": "uptime",
+    "command": "UPTIME",
+    "expectFormat": "uptime",
+    "maxMs": 500
+  },
+  {
+    "name": "echo",
+    "command": "ECHO hello",
+    "expect": "OK hello",
+    "maxMs": 500
+  },
+  {
+    "name": "ip",
+    "command": "IP",
+    "expectPrefix": "OK ",
+    "maxMs": 500
+  },
+  {
+    "name": "rssi",
+    "command": "RSSI",
+    "expectPrefix": "OK ",
+    "maxMs": 500
+  }
+]

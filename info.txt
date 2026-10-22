@@ -1,0 +1,91 @@
+# TestBench
+
+An automated hardware test station written in C#/.NET. It drives an ESP8266 (ESP-01) device through a scripted test sequence, verifies the results against limits, and logs pass/fail results, the way a factory or equipment test station would.
+
+## Goals
+
+- Run a repeatable test sequence against real hardware and report pass/fail per test
+- Verify physical outcomes, not just command acknowledgments (closed-loop relay testing)
+- Detect and report faults cleanly: disconnects, timeouts, bad replies, stuck actuators
+- Run the same tests over USB serial or Wi-Fi without changing test code
+- Run the full test suite in CI with no hardware, using a device simulator
+
+## Architecture
+
+```
+tests.json ──> Test Runner ──> ITransport ──┬── SerialTransport ──> ESP-01 (USB programmer)
+                  │                         ├── TcpTransport ─────> ESP-01 (relay board, Wi-Fi)
+                  │                         └── SimTransport ─────> DeviceSimulator (CI)
+                  ▼
+          Console summary + CSV log
+```
+
+- **Test Runner:** loads tests from JSON, runs them in order, times each one, and evaluates results against limits
+- **ITransport:** a common interface (`Connect`, `Send`, `ReadLine`, `Close`) so tests don't care how the device is connected
+- **DeviceSimulator:** a C# implementation of the firmware protocol, used for unit tests and CI
+
+## Protocol
+
+Line-based ASCII, newline-terminated. Every reply starts with `OK` or `ERR`.
+
+| Command | Reply | Purpose |
+|---|---|---|
+| `PING` | `OK PONG` | Liveness check |
+| `VERSION` | `OK <semver>` | Firmware version |
+| `UPTIME` | `OK <ms>` | Detect unexpected resets |
+| `ECHO <text>` | `OK <text>` | Data integrity |
+| `RELAY ON` / `RELAY OFF` | `OK` | Drive the relay (GPIO0) |
+| `CONTACT` | `OK OPEN` / `OK CLOSED` | Read relay contact feedback (GPIO2) |
+| `RSSI` | `OK <dBm>` | Wi-Fi signal strength |
+| anything else | `ERR unknown command` | Error path |
+
+## Test definition (tests.json)
+
+```json
+[
+  { "name": "ping",          "command": "PING",      "expect": "OK PONG",  "maxMs": 200 },
+  { "name": "version",       "command": "VERSION",   "expectPrefix": "OK ",    "maxMs": 200 },
+  { "name": "echo",          "command": "ECHO hello","expect": "OK hello", "maxMs": 200 },
+  { "name": "bad-command",   "command": "FOO",       "expectPrefix": "ERR",    "maxMs": 200 },
+  { "name": "relay-closes",  "steps": ["RELAY ON", "WAIT 50", "CONTACT"],  "expect": "OK CLOSED", "maxMs": 100 },
+  { "name": "relay-opens",   "steps": ["RELAY OFF", "WAIT 50", "CONTACT"], "expect": "OK OPEN",   "maxMs": 100 }
+]
+```
+
+## Hardware
+
+- ESP-01 (ESP8266) on a USB programmer for serial development
+- ESP-01 relay module for the Wi-Fi stage
+  - GPIO0 drives the relay
+  - Relay COM to GND, relay NO to GPIO2 (internal pull-up) for contact feedback
+  - Module powered from 5V
+
+## Fault injection
+
+Each fault should produce a clear FAIL with a reason, never a crash.
+
+| Fault | Expected result |
+|---|---|
+| Unplug USB / power | `FAIL device not found` or timeout |
+| Disconnect contact wire | `FAIL relay-closes: expected CLOSED, got OPEN` (stuck open) |
+| Simulator returns garbage | `FAIL unexpected reply` |
+| Simulator delays reply | `FAIL exceeded maxMs` |
+
+## Milestones
+
+- [x] **M0:** Firmware answers `PING` over serial; C# app sends `PING` and reports PASS/FAIL; handles missing device
+- [x] **M1:** Firmware supports `VERSION`, `UPTIME`, `ECHO`; C# test runner with timing and summary (`4/4 passed`)
+  - Verified: .NET build and serial smoke checks pass; firmware compiled/uploaded with flash hash verification; connected ESP-01 reports `4/4 passed`.
+- [x] **M2:** Tests loaded from `tests.json`; every run logged to `logs/run-<timestamp>.csv`
+- [x] **M3:** `ITransport` with `SerialTransport`; refactor runner to use it
+- [ ] **M4:** Wi-Fi firmware (TCP server) on the relay board; `TcpTransport`; relay and contact tests passing
+  - Actual TCP hardware checks pass 6/6. Firmware 0.2.1 enables unloaded GPIO0 switching checks. User observed OFF → ON → OFF during HIGH → LOW → HIGH switching, confirming active-low control. Pending feedback wiring and automatic contact verification.
+- [ ] **M5:** `DeviceSimulator` + `SimTransport`; xUnit tests for the runner; GitHub Actions runs them on every push
+- [ ] **M6:** README with wiring photo, demo GIF, and fault-injection demo
+
+## Stretch
+
+- Soak test: 1,000 PINGs with min/avg/p95 latency and failure rate; 500 relay cycles to catch intermittent faults
+- Protocol hardening: checksums, sequence numbers, retries; watchdog timer in firmware
+- Avalonia dashboard with live pass/fail and a latency chart
+- Simplified SECS/GEM-style event and alarm reporting

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "drive-high-OFF",
+    "steps": [
+      "RELAY OFF",
+      "WAIT 2000",
+      "PING"
+    ],
+    "expect": "OK PONG",
+    "maxMs": 3000
+  },
+  {
+    "name": "drive-low-ON",
+    "steps": [
+      "RELAY ON",
+      "WAIT 2000",
+      "PING"
+    ],
+    "expect": "OK PONG",
+    "maxMs": 3000
+  },
+  {
+    "name": "return-high-OFF",
+    "steps": [
+      "RELAY OFF",
+      "WAIT 2000",
+      "PING"
+    ],
+    "expect": "OK PONG",
+    "maxMs": 3000
+  }
+]

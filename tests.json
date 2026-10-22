@@ -1,0 +1,6 @@
+[
+  { "name": "ping", "command": "PING", "expect": "OK PONG", "maxMs": 200 },
+  { "name": "version", "command": "VERSION", "expectFormat": "version", "maxMs": 200 },
+  { "name": "uptime", "command": "UPTIME", "expectFormat": "uptime", "maxMs": 200 },
+  { "name": "echo", "command": "ECHO hello", "expect": "OK hello", "maxMs": 200 }
+]
