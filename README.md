@@ -88,7 +88,7 @@ These exercise the real serial runner through a pseudo-terminal: valid and malfo
 
 Current validation: the .NET build and the serial smoke checks pass. Missing-device handling was checked. The firmware compiled with ESP8266 core 3.1.2, uploaded successfully, and passed flash hash verification. Hardware acceptance on the connected ESP-01 reports **4/4 passed** (`PING`, `VERSION`, `UPTIME`, `ECHO`), with all responses below 200 ms. M1 is complete. M2 also passed a hardware run using JSON definitions and produced a CSV with four passing results.
 
-See `info.txt` for the full roadmap. M4 hardware acceptance and a C# simulator remain outstanding.
+See `info.txt` for the full roadmap. M4 physical contact verification remains outstanding; M5 provides a hardware-free simulator and CI.
 
 ## Wi-Fi and relay testing (M4)
 
@@ -111,4 +111,32 @@ Bench observations collected during development on October 21, 2026 (Pacific tim
 
 TCP timing samples include PING, VERSION, UPTIME, ECHO, IP, and RSSI from three six-test TCP CSV logs. Durations are measured by the host runner and include command transmission and reply processing; they exclude connection setup. These are a small set of development measurements, not a sustained-load benchmark or reliability guarantee. The two-second relay holds are deliberately excluded from command-latency statistics.
 
-Regression checks cover protocol errors, invalid configuration, timeouts, connection failures, fragmented TCP replies, CSV output, and simulated stuck-open feedback. Local fixtures exercise software behavior; they do not substitute for contact measurements. Physical relay switching has been observed, but automated contact-feedback verification is pending. A C# device simulator, xUnit suite, and GitHub Actions integration remain future milestones.
+Regression checks cover protocol errors, invalid configuration, timeouts, connection failures, fragmented TCP replies, CSV output, and simulated stuck-open feedback. Local fixtures exercise software behavior; they do not substitute for contact measurements. Physical relay switching has been observed, but automated contact-feedback verification is pending. M5 adds the C# simulator, xUnit tests, and GitHub Actions workflow described below.
+
+## Simulator and continuous integration (M5)
+
+No board, wiring, Wi-Fi credentials, or Arduino tools are required for these commands:
+
+```sh
+# Run the regular four-command suite against the C# simulator
+dotnet run -- sim
+
+# Run all eight relay-suite checks using simulated contact feedback
+dotnet run -- sim tests-relay.json
+
+# Demonstrate a stuck-open contact: relay-closes fails; final OFF still runs
+dotnet run -- sim:stuck-open tests-relay.json
+
+# Run the xUnit tests
+dotnet test tests/TestBench.Tests/TestBench.Tests.csproj
+```
+
+Available simulator endpoints: `sim`, `sim:stuck-open`, `sim:stuck-closed`, `sim:garbage`, `sim:timeout`, `sim:disconnect`, and `sim:missing`. Fault scenarios intentionally produce FAIL results and exit code 1. An unknown simulator scenario exits with 2. The endpoint appears in the CSV `port` column, so simulated results are distinguishable from physical-device runs.
+
+`DeviceSimulator` models the firmware's commands, uptime, relay state, contact faults, five-second relay watchdog, and relay shutdown on connection close. `SimTransport` implements `ITransport`, adds reply delay/failure injection, and requires a reply to be consumed before the next command. The runner uses unchanged JSON definitions. IP and RSSI values are synthetic; simulation timings measure local software only and must not be presented as hardware/network latency. The model does not emulate boot pins, radio behavior, electrical faults, or mechanical contact settling.
+
+The suite contains **36 xUnit cases**, plus the existing **22 serial/TCP regression check groups**. It covers protocol behavior, shared timing budgets, session shutdown after faults, contact-state mismatches despite successful acknowledgments, CSV escaping, configuration validation, uptime rollover, and watchdog behavior.
+
+[GitHub Actions](https://github.com/zxcv616/testbench/actions/workflows/tests.yml) builds the application and runs xUnit tests, default/relay simulator suites, serial pseudo-terminal checks, and TCP loopback checks on every push and pull request. It can also be started manually. CI runs on Linux without physical hardware or Wi-Fi credentials. Local serial/TCP Python checks require Python 3 and macOS/Linux.
+
+M5 is implemented. M4 remains open specifically for wiring and automatic verification of the real relay contacts; simulated contact tests do not complete that hardware milestone.

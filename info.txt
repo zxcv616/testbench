@@ -80,7 +80,7 @@ Each fault should produce a clear FAIL with a reason, never a crash.
 - [x] **M3:** `ITransport` with `SerialTransport`; refactor runner to use it
 - [ ] **M4:** Wi-Fi firmware (TCP server) on the relay board; `TcpTransport`; relay and contact tests passing
   - Actual TCP hardware checks pass 6/6. Firmware 0.2.1 enables unloaded GPIO0 switching checks. User observed OFF → ON → OFF during HIGH → LOW → HIGH switching, confirming active-low control. Pending feedback wiring and automatic contact verification.
-- [ ] **M5:** `DeviceSimulator` + `SimTransport`; xUnit tests for the runner; GitHub Actions runs them on every push
+- [x] **M5:** `DeviceSimulator` + `SimTransport`; xUnit tests for the runner; GitHub Actions runs them on every push
 - [ ] **M6:** README with wiring photo, demo GIF, and fault-injection demo
 
 ## Stretch

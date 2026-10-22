@@ -1,0 +1,31 @@
+name: Hardware-free tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Build runner
+        run: dotnet build TestBench.csproj
+      - name: Run xUnit tests
+        run: dotnet test tests/TestBench.Tests/TestBench.Tests.csproj
+      - name: Run default and relay suites with simulator
+        run: |
+          dotnet run --no-build -- sim
+          dotnet run --no-build -- sim tests-relay.json
+      - name: Check serial transport and logging through pseudo-terminals
+        run: python3 checks/serial_smoke.py
+      - name: Check TCP transport and fault handling over loopback
+        run: python3 checks/tcp_smoke.py

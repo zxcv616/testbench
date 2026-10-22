@@ -2,7 +2,7 @@ using System.Text.Json;
 
 if (args.Length > 3 || args.FirstOrDefault() is "--help" or "-h")
 {
-    Console.WriteLine("Usage: dotnet run -- [serial-port|tcp://host:port] [tests-file] [logs-directory]");
+    Console.WriteLine("Usage: dotnet run -- [serial-port|tcp://host:port|sim[:fault]] [tests-file] [logs-directory]");
     return args.Length > 3 ? 2 : 0;
 }
 
@@ -26,7 +26,8 @@ try
     log.WriteLine("timestampUtc,port,test,commands,expected,maxMs,status,executed,durationMs,response,reason");
     Console.WriteLine($"Loaded {tests.Length} tests from {testsPath}\nCSV log: {logPath}");
 
-    using ITransport transport = portName.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase)
+    using ITransport transport = portName == "sim" || portName.StartsWith("sim:", StringComparison.Ordinal)
+        ? SimTransport.FromEndpoint(portName) : portName.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase)
         ? new TcpTransport(portName) : new SerialTransport(portName);
     return new TestRunner().Run(tests, transport, log, Console.Out);
 }
